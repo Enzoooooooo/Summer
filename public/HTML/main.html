@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main</title>
+    <link rel="stylesheet" href="../CSS/main.css">
+    <link
+            rel="stylesheet"
+            href="https://unpkg.com/swiper@7/swiper-bundle.min.css"
+    />
+    <script src="https://unpkg.com/swiper@7/swiper-bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <div class="header">
+            <button id="new-group">+ Nouveau groupe</button>
+        </div>
+        <ul id="groups-list">
+            <!-- Les groupes seront ajoutés ici -->
+        </ul>
+        <div class="footer">
+            <button id="my-account">Mon compte</button>
+            <button id="logout">Déconnexion</button>
+        </div>
+    </div>
+    <div class="content">
+        <!-- Le contenu principal de la page sera ici -->
+        <div class="group-form-container" id="group-form-container" style="display:none;">
+            <form class="group-form" id="group-form">
+                <label for="group-name">Nom du groupe</label>
+                <input type="text" id="group-name" name="group-name" required>
+                <label for="group-people">Nombre de personnes</label>
+                <input type="number" id="group-people" name="group-people" required>
+                <label for="group-city">Ville</label>
+                <input type="text" id="group-city" name="group-city" required>
+                <label for="group-budget">Budget</label>
+                <input type="number" id="group-budget" name="group-budget" required>
+                <button type="submit">Créer un groupe</button>
+                <button type="button" id="cancel-form">Annuler</button>
+            </form>
+        </div>
+        <div id="activity-container"></div> <!-- Ajout de cette ligne -->
+        <button id="like-button">♥</button>
+        <button id="dislike-button">×</button>
+    </div>
+</div>
+<script src="../JS/main.js"></script>
+</body>
+</html>
