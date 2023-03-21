@@ -5,6 +5,20 @@ if (userId) {
     console.error("Erreur: L'ID utilisateur est introuvable");
 }
 
+let currentActivityIndex = 0;
+let selectedGroupId = null;
+let activities = [];
+
+function showActivityByIndex(activities) {
+    if (activities.length === 0) {
+        return;
+    }
+
+    currentActivityIndex = currentActivityIndex % activities.length;
+    const activity = activities[currentActivityIndex];
+    displayActivity(activity);
+}
+
 function displayGroups(groups) {
     const groupsList = document.getElementById('groups-list');
     groupsList.innerHTML = '';
@@ -41,16 +55,50 @@ function displayGroups(groups) {
             fetchActivities(group.city);
         });
         groupsList.appendChild(groupItem);
+        groupInfoContainer.dataset.groupId = group._id;
         groupItem.addEventListener('click', () => {
             fetchActivities(group.city);
+            selectedGroupId = group._id;
         });
     }
+}
+
+function displayActivity(activity) {
+    const swipeContainer = document.getElementById('swipe-container');
+    swipeContainer.innerHTML = '';
+
+    const activityItem = document.createElement('div');
+    activityItem.classList.add('activity-item', 'swiper-slide');
+
+    const activityName = document.createElement('h4');
+    activityName.textContent = activity.name;
+    activityItem.appendChild(activityName);
+
+    const activityImage = document.createElement('img');
+    activityImage.src = activity.image_url;
+    activityImage.alt = activity.name;
+    activityImage.classList.add('activity-image');
+    activityItem.appendChild(activityImage);
+
+    swipeContainer.appendChild(activityItem);
+}
+
+function displayActivities(activities) {
+    const swiperContainer = document.querySelector(".swiper-container");
+
+    if (activities.length > 0) {
+        swiperContainer.classList.remove("hidden");
+    } else {
+        swiperContainer.classList.add("hidden");
+    }
+
+    showActivityByIndex(activities);
 }
 
 async function fetchActivities(city) {
     try {
         const response = await axios.get('/activities/' + city);
-        const activities = response.data;
+        activities = response.data; // Mettez à jour la valeur de la variable 'activities' ici
         console.log(activities); // Ajoutez cette ligne pour vérifier les données récupérées
         displayActivities(activities);
         return activities;
@@ -60,11 +108,10 @@ async function fetchActivities(city) {
     }
 }
 
-
 async function fetchGroups() {
     const userId = localStorage.getItem('userId');
     try {
-        const response = await fetch(`/groups/${userId}`);
+        const response = await fetch(`/groups/${userId}/all`);
         if (response.ok) {
             const groups = await response.json();
             displayGroups(groups);
@@ -92,36 +139,6 @@ async function deleteGroup(groupId) {
     }
 }
 
-function displayActivities(activities) {
-    const swiperContainer = document.querySelector(".swiper-container");
-
-    if (activities.length > 0) {
-        swiperContainer.classList.remove("hidden");
-    } else {
-        swiperContainer.classList.add("hidden");
-    }
-
-    const swipeContainer = document.getElementById('swipe-container');
-    swipeContainer.innerHTML = '';
-
-    for (const activity of activities) {
-        const activityItem = document.createElement('div');
-        activityItem.classList.add('activity-item', 'swiper-slide');
-
-        const activityName = document.createElement('h4');
-        activityName.textContent = activity.name;
-        activityItem.appendChild(activityName);
-
-        // Ajouter l'image de l'activité
-        const activityImage = document.createElement('img');
-        activityImage.src = activity.image_url; // Assurez-vous que l'attribut "photo" existe dans l'objet "activity"
-        activityImage.alt = activity.name;
-        activityImage.classList.add('activity-image');
-        activityItem.appendChild(activityImage);
-
-        swipeContainer.appendChild(activityItem);
-    }
-}
 
 document.getElementById('logout').addEventListener('click', () => {
     localStorage.removeItem('userId');
@@ -153,5 +170,36 @@ document.getElementById('group-form').addEventListener('submit', async (event) =
         fetchGroups();
     } catch (error) {
         console.error('Erreur lors de la création du groupe', error);
+    }
+});
+
+document.getElementById('like-button').addEventListener('click', () => {
+    currentActivityIndex++;
+    showActivityByIndex(activities);
+});
+
+document.getElementById('dislike-button').addEventListener('click', () => {
+    currentActivityIndex++;
+    showActivityByIndex(activities);
+});
+
+document.getElementById('add-friend').addEventListener('click', () => {
+    document.getElementById('friend-form-container').style.display = 'flex';
+});
+
+document.getElementById('cancel-friend-form').addEventListener('click', () => {
+    document.getElementById('friend-form-container').style.display = 'none';
+});
+
+document.getElementById('friend-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const friendEmail = document.getElementById('friend-email').value;
+    const groupId = selectedGroupId;
+
+    try {
+        await axios.post(`/groups/${groupId}/add-friend`, { email: friendEmail });
+        document.getElementById('friend-form-container').style.display = 'none';
+    } catch (error) {
+        console.error("Erreur lors de l'ajout d'un ami au groupe", error);
     }
 });

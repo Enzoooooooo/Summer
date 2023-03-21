@@ -43,9 +43,22 @@
                 <button type="button" id="cancel-form">Annuler</button>
             </form>
         </div>
-        <div id="activity-container"></div> <!-- Ajout de cette ligne -->
-        <button id="like-button">♥</button>
-        <button id="dislike-button">×</button>
+        <button id="add-friend" class="button">Ajouter un ami</button>
+        <div id="friend-form-container" class="modal">
+            <form id="friend-form" class="modal-content">
+                <span id="cancel-friend-form" class="close">&times;</span>
+                <h2>Ajouter un ami</h2>
+                <input id="friend-email" type="email" name="email" placeholder="Adresse e-mail de l'ami" required />
+                <button type="submit" class="button">Ajouter</button>
+            </form>
+        </div>
+        <div class="swiper-container hidden">
+            <div class="swiper-wrapper" id="swipe-container">
+                <!-- Les activités seront ajoutées ici -->
+            </div>
+            <button id="like-button">♥</button> <!-- Modification ici -->
+            <button id="dislike-button">×</button> <!-- Modification ici -->
+        </div>
     </div>
 </div>
 <script src="../JS/main.js"></script>

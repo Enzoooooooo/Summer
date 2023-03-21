@@ -1,22 +1,48 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-    const googlePlacesAPIKey = 'AIzaSyAjYLLVaNBTzOi-9Ibq_G5BUIM6ZMZSKQo';
+const googlePlacesAPIKey = 'AIzaSyAjYLLVaNBTzOi-9Ibq_G5BUIM6ZMZSKQo';
+const express = require('express');
+const User = require('./public/JS/user');
+const Group = require('./public/JS/group');
+const axios = require('axios');
+const app = express();
+const path = require('path');
+
+mongoose.connect('mongodb+srv://enleroux:G8M91O876qtdjw1y@summerdb.0v0ywp0.mongodb.net/test', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+})
+    .then(() => console.log('Connexion à MongoDB réussie'))
+    .catch((err) => console.error('Erreur de connexion à MongoDB', err));
 
 async function fetchGooglePlacesActivities(city) {
-    try {
-        const response = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', {
-            params: {
-                key: googlePlacesAPIKey,
-                query: `activités à ${city}`,
-                type: 'tourist_attraction'
-            }
-        });
+    const types = ['university'];
 
-        return response.data.results;
-    } catch (error) {
-        console.error('Erreur lors de la récupération des activités Google Places', error);
-        return [];
+    const fetchActivitiesByType = async (type) => {
+        try {
+            const response = await axios.get('https://maps.googleapis.com/maps/api/place/textsearch/json', {
+                params: {
+                    key: googlePlacesAPIKey,
+                    query: `activités à ${city}`,
+                    type: type,
+                    radius: 2
+                }
+            });
+            return response.data.results;
+        } catch (error) {
+            console.error('Erreur lors de la récupération des activités Google Places', error);
+            return [];
+        }
+    };
+
+    let allActivities = [];
+
+    for (const type of types) {
+        const activities = await fetchActivitiesByType(type);
+        allActivities = allActivities.concat(activities);
     }
+
+    return allActivities;
 }
 
 function formatGooglePlacesActivities(activities) {
@@ -29,25 +55,27 @@ function formatGooglePlacesActivities(activities) {
             city: activity.plus_code.compound_code.split(', ')[1],
             zip_code: '',
         },
-        categories: [{ title: activity.types[0] }],
+        categories: [{title: activity.types[0]}],
     }));
 }
 
-mongoose.connect('mongodb+srv://enleroux:G8M91O876qtdjw1y@summerdb.0v0ywp0.mongodb.net/test', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-    .then(() => console.log('Connexion à MongoDB réussie'))
-    .catch((err) => console.error('Erreur de connexion à MongoDB', err));
-
-const express = require('express');
-const User = require('./public/JS/user');
-const Group = require('./public/JS/group');
-const axios = require('axios');
-const app = express();
-const path = require('path');
 
 app.use(express.json());
+
+app.get('/groups/:userId/all', async (req, res) => {
+    const userId = req.params.userId;
+
+    try {
+        const createdGroups = await Group.find({ user: userId });
+        const friendGroups = await Group.find({ users: userId });
+
+        const allGroups = [...createdGroups, ...friendGroups];
+        res.status(200).json(allGroups);
+    } catch (error) {
+        console.error("Erreur lors de la récupération des groupes de l'utilisateur", error);
+        res.status(500).json({ message: "Erreur lors de la récupération des groupes de l'utilisateur" });
+    }
+});
 
 app.post('/signup', async (req, res) => {
     const {firstName, lastName, age, email, password} = req.body;
@@ -99,21 +127,21 @@ app.post('/login', async (req, res) => {
 });
 // Route pour créer un nouveau groupe
 app.post('/groups', async (req, res) => {
-    const { userId, groupName, numberOfPeople, city, budget } = req.body;
+    const {userId, groupName, numberOfPeople, city, budget} = req.body;
 
     try {
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(400).json({ message: 'Utilisateur non trouvé' });
+            return res.status(400).json({message: 'Utilisateur non trouvé'});
         }
 
-        const newGroup = new Group({ name: groupName, user: userId, numberOfPeople, city, budget });
+        const newGroup = new Group({name: groupName, user: userId, numberOfPeople, city, budget});
         await newGroup.save();
 
-        res.status(201).json({ message: 'Groupe créé avec succès' });
+        res.status(201).json({message: 'Groupe créé avec succès'});
     } catch (error) {
         console.error('Erreur lors de la création du groupe', error);
-        res.status(500).json({ message: 'Erreur lors de la création du groupe' });
+        res.status(500).json({message: 'Erreur lors de la création du groupe'});
     }
 });
 // Route pour récupérer les groupes d'un utilisateur
@@ -135,15 +163,44 @@ app.delete('/groups/:groupId', async (req, res) => {
     try {
         const group = await Group.findById(groupId);
         if (!group) {
+            return res.status(404).json({message: 'Groupe non trouvé'});
+        }
+
+        await Group.deleteOne({_id: groupId}); // Modifiez cette ligne
+
+        res.status(200).json({message: 'Groupe supprimé avec succès'});
+    } catch (error) {
+        console.error('Erreur lors de la suppression du groupe', error);
+        res.status(500).json({message: 'Erreur lors de la suppression du groupe'});
+    }
+});
+
+app.post('/groups/:groupId/add-friend', async (req, res) => {
+    const groupId = req.params.groupId;
+    const friendEmail = req.body.email;
+
+    try {
+        const group = await Group.findById(groupId);
+        if (!group) {
             return res.status(404).json({ message: 'Groupe non trouvé' });
         }
 
-        await Group.deleteOne({ _id: groupId }); // Modifiez cette ligne
+        const friend = await User.findOne({ email: friendEmail });
+        if (!friend) {
+            return res.status(404).json({ message: "L'adresse e-mail de l'ami n'a pas été trouvée" });
+        }
 
-        res.status(200).json({ message: 'Groupe supprimé avec succès' });
+        if (group.users.includes(friend._id)) {
+            return res.status(400).json({ message: 'Cet ami fait déjà partie du groupe' });
+        }
+
+        group.users.push(friend._id);
+        await group.save();
+
+        res.status(200).json({ message: 'Ami ajouté avec succès au groupe' });
     } catch (error) {
-        console.error('Erreur lors de la suppression du groupe', error);
-        res.status(500).json({ message: 'Erreur lors de la suppression du groupe' });
+        console.error("Erreur lors de l'ajout d'un ami au groupe", error);
+        res.status(500).json({ message: "Erreur lors de l'ajout d'un ami au groupe" });
     }
 });
 
@@ -164,7 +221,7 @@ app.get('/activities/:city', async (req, res) => {
         res.json(shuffledActivities);
     } catch (error) {
         console.error('Erreur lors de la récupération des activités', error);
-        res.status(500).json({ message: 'Erreur lors de la récupération des activités' });
+        res.status(500).json({message: 'Erreur lors de la récupération des activités'});
     }
 });
 
